@@ -1,6 +1,6 @@
 create table criptos_price(
-	id varchar(40),
-	symbol varchar (20),
+	id varchar(40) NOT NULL,
+	symbol varchar (20) UNIQUE,
 	name varchar (100),
 	supply decimal (20,2),
 	maxSupply decimal (20,2),
@@ -11,7 +11,7 @@ create table criptos_price(
 	vwap24Hr decimal (20,2),
 	explorer varchar (120),
 	timestamp timestamp,
-	primary key (ID)
-)
+	PRIMARY key (id)
+);
 
-select * from criptos_price cp
+
