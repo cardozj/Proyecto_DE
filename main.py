@@ -1,11 +1,14 @@
-import os
-os.system("pip install -r requirements.txt")
+#Ejecuat en consola "python3 -m venv .venv"  para creacion de entorno virtual
+#Instalar requirements "pip install -r requirements.txt"
+#Generar archivo .env con las variables en load_dotenv()
 
+import os
 import psycopg2
 import requests
 import json
 import pandas as pd
 import sqlite3
+import os
 from dotenv import load_dotenv
 from psycopg2 import extras
 
@@ -51,8 +54,8 @@ df_coincap.sort_values(by='priceUsd',ascending=False)
 
 print (df_coincap)
 
-#Carga de credenciales desde .env 
-load_dotenv() 
+#Carga de credenciales desde .env
+load_dotenv()
 user = os.getenv("USER")
 pwd = os.getenv("PWD")
 host = os.getenv("HOST")
