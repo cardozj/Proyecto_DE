@@ -1,49 +1,41 @@
-#Ejecuat en consola "python3 -m venv .venv"  para creacion de entorno virtual
-#Instalar requirements "pip install -r requirements.txt"
-#Generar archivo .env con las variables en load_dotenv()
-
-import os
-import psycopg2
-import requests
+#ENTREGABLE 2 CON LAS CORRECCIONES 
 import json
-import pandas as pd
-import sqlite3
 import os
+import requests
+import pandas as pd
 from dotenv import load_dotenv
-from psycopg2 import extras
+import psycopg2.extensions
+from psycopg2.extras import execute_values
 
-def get_data_api(url):
-    # Realiza la solicitud a la API
-    response = requests.get(url)
-    
+def get_data_api():
+    """Realiza la solicitud a la API"""
+    response = requests.get('https://api.coincap.io/v2/assets')
     # Verifica si la solicitud fue exitosa (código de estado 200)
     if response.status_code == 200:
-        # Devuelve los datos en formato JSON
+    # Devuelve los datos en formato JSON
         return response.json()
     else:
-        # Si la solicitud falla, imprime un mensaje de error
+    # Si la solicitud falla, imprime un mensaje de error
         print("Error al obtener datos de la API:", response.status_code)
         return None
     
 def execute_read_query(connection, query):
     #Conexion a db mediante cursor
-    cursor = connection.cursor()
+    c = connection.cursor()
     result = None
     try:
         #Ejecuto Query para visualizar tabla
-        cursor.execute(query)
+        c.execute(query)
         #Guardo resultado y devuelvo a main
-        result = cursor.fetchall()
+        result = c.fetchall()
         return result
-    except sqlite3.Error as e:
+    except Exception as e:
         #En el caso de fallar, me devuelve error especifico
-        print(f"Error '{e}' ha ocurrido")
-
-# URL de la API CoinCap
-url_api = "https://api.coincap.io/v2/assets"
+        print({e})
 
 # Obtener los datos desde la API y Normalizarlos
-df_coincap = pd.json_normalize(get_data_api(url_api), record_path =['data'], meta=['timestamp'])
+df_coincap = get_data_api()
+df_coincap = pd.json_normalize(df_coincap, record_path =['data'], meta=['timestamp'])
 
 # Limpieza de datos
 df_coincap = df_coincap.drop(columns=['rank'])
@@ -72,24 +64,36 @@ try:
     )
     #En el caso de ser exitosa la conexion
     print("Conectado a Redshift")
-    
-except Exception as e:
+except Exception as error:
     #Si fallara la conexion nos devolveria el problema
     print("Error de conexion a Redshift")
-    print(e)
+    print(error)
 
 #Envio de df
 #Conversion de df a tupla
 tuplas = [tuple(x) for x in df_coincap.to_numpy()]
 
 #Conexion a db 
-cursor = conn.cursor()
+cur = conn.cursor()
 
 #Query para insertar valores
-insert_query = "INSERT INTO criptos_price (id, symbol, name, supply, maxSupply, marketCapUsd, volumeUsd24Hr, priceUsd, changePercent24Hr, vwap24Hr, explorer, timestamp) VALUES %s"
+insert_query = """INSERT INTO criptos_price (
+                                                id, 
+                                                symbol, 
+                                                name, 
+                                                supply, 
+                                                maxSupply, 
+                                                marketCapUsd, 
+                                                volumeUsd24Hr, 
+                                                priceUsd, 
+                                                changePercent24Hr, 
+                                                vwap24Hr, 
+                                                explorer, 
+                                                timestamp) 
+                                            VALUES %s"""
 
 #Crear la tabla si no existe
-cursor.execute("""
+cur.execute("""
             CREATE TABLE IF NOT EXISTS criptos_price(
 	        id varchar(40) NOT NULL,
 	        symbol varchar (20) UNIQUE,
@@ -108,22 +112,22 @@ cursor.execute("""
         """)
 
 #Limpio tabla para actualizar contenido
-cursor.execute("TRUNCATE TABLE criptos_price")
+cur.execute("TRUNCATE TABLE criptos_price")
 
 #Insertar los datos en la base de datos
-extras.execute_values(cursor, insert_query, tuplas)
+execute_values(cur, insert_query, tuplas)
 
 # Confirmar los cambios
 conn.commit()
 
 #Verifico los datos cargados en RedShift mediante consulta
 query_db = "SELECT name as cripto, priceUsd as cotizacion FROM criptos_price"
-cursor.execute(query_db)
-columnas = [description[0] for description in cursor.description]
-cursor.fetchall()
-print (pd.DataFrame(execute_read_query(conn, query_db),columns=columnas))
+cur.execute(query_db)
+columnas = [description[0] for description in cur.description]
+a = cur.fetchall()
+print (pd.DataFrame(a,columns=columnas))
 
 
 # Cerrar conexión
-cursor.close()
+cur.close()
 conn.close()
